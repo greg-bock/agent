@@ -3,6 +3,14 @@ Description=Kata Containers Agent
 Documentation=https://github.com/kata-containers/agent
 Wants=kata-containers.target
 
+# virtio-serial is needed unless virtio-vsock is used (see below)
+BindsTo=dev-virtio\x2dports-agent.channel.0.device
+After=dev-virtio\x2dports-agent.channel.0.device
+
+# The UpdateInterface gRPC call needs the network interface to be up
+BindsTo=sys-subsystem-net-devices-eth0.device
+After=sys-subsystem-net-devices-eth0.device
+
 [Service]
 # Send agent output to tty to allow capture debug logs
 # from a VM serial port
@@ -10,5 +18,10 @@ StandardOutput=tty
 Type=simple
 ExecStart=@bindir@/@kata-agent@
 LimitNOFILE=infinity
+
+# Make sure virtio-vsock is loaded before the agent attempts to use AF_VSOCK
+# sockets, otherwise the VMware VMCI transport might be loaded instead.
+ExecStartPre=/sbin/modprobe vmw_vsock_virtio_transport
+
 ExecStop=/bin/sync ; /usr/bin/systemctl --force poweroff
 FailureAction=poweroff
